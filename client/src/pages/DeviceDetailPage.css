@@ -1,0 +1,260 @@
+/* ─── Device Detail ─────────────────────────────────────────────────────────── */
+.device-detail-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.device-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.3rem;
+}
+
+.device-id-badge, .device-template-badge {
+  font-size: 0.75rem;
+  font-family: monospace;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.1rem 0.5rem;
+  color: var(--text-muted);
+}
+
+/* ─── Edit Mode Banner ──────────────────────────────────────────────────────── */
+.edit-mode-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  color: var(--accent-cyan);
+}
+
+/* ─── Dashboard Grid ────────────────────────────────────────────────────────── */
+.dashboard-grid {
+  min-height: 400px;
+}
+
+/* ─── Widget Container ──────────────────────────────────────────────────────── */
+.widget-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: var(--transition);
+}
+
+.widget-container:hover {
+  border-color: rgba(0, 212, 255, 0.3);
+  box-shadow: var(--shadow-card);
+}
+
+.widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  min-height: 32px;
+}
+
+.widget-pin-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: monospace;
+  color: var(--accent-cyan);
+}
+
+.widget-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.widget-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.2rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: var(--transition);
+}
+
+.widget-action-btn:hover {
+  color: var(--accent-cyan);
+  background: rgba(0, 212, 255, 0.1);
+}
+
+.widget-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  overflow: hidden;
+}
+
+.widget-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+/* ─── Gauge Widget ──────────────────────────────────────────────────────────── */
+.gauge-widget {
+  gap: 0.25rem;
+}
+
+.gauge-container {
+  width: 100%;
+  max-width: 140px;
+}
+
+.gauge-svg {
+  width: 100%;
+  height: auto;
+}
+
+.gauge-range {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 140px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* ─── Numeric Widget ────────────────────────────────────────────────────────── */
+.numeric-widget {
+  gap: 0.5rem;
+}
+
+.numeric-icon {
+  opacity: 0.8;
+}
+
+.numeric-value {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.numeric-unit {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.numeric-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ─── Chart Widget ──────────────────────────────────────────────────────────── */
+.chart-widget {
+  width: 100%;
+  height: 100%;
+  padding: 0.5rem;
+}
+
+/* ─── LED Widget ────────────────────────────────────────────────────────────── */
+.led-widget {
+  gap: 0.5rem;
+}
+
+.led-indicator {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.led-on {
+  background: var(--accent-green);
+  box-shadow: 0 0 20px var(--accent-green), 0 0 40px rgba(0, 255, 136, 0.3);
+  animation: ledPulse 2s ease-in-out infinite;
+}
+
+.led-off {
+  background: var(--text-muted);
+  box-shadow: none;
+}
+
+@keyframes ledPulse {
+  0%, 100% { box-shadow: 0 0 20px var(--accent-green), 0 0 40px rgba(0, 255, 136, 0.3); }
+  50% { box-shadow: 0 0 30px var(--accent-green), 0 0 60px rgba(0, 255, 136, 0.5); }
+}
+
+.led-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.led-status {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.1em;
+}
+
+.led-value {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ─── Token Display ─────────────────────────────────────────────────────────── */
+.token-display {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.token-display code {
+  flex: 1;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--accent-cyan);
+  word-break: break-all;
+}
+
+.token-config {
+  margin-top: 0.5rem;
+}
+
+.code-block {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--accent-green);
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.6;
+}
