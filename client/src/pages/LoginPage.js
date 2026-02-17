@@ -52,7 +52,7 @@ const LoginPage = () => {
             <Activity size={28} />
           </div>
           <div>
-            <h1><span className="gradient-text">IoT</span> Dashboard</h1>
+            <h1><span className="gradient-text">Nexus</span> IoT</h1>
             <p>Professional IoT Monitoring Platform</p>
           </div>
         </div>

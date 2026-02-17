@@ -46,8 +46,8 @@ const Layout = () => {
           </div>
           {sidebarOpen && (
             <div className="logo-text">
-              <span className="gradient-text">IoT</span>
-              <span> Dashboard</span>
+              <span className="gradient-text">Nexus</span>
+              <span> IoT</span>
             </div>
           )}
           <button

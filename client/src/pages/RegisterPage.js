@@ -34,7 +34,7 @@ const RegisterPage = () => {
     setLoading(true);
     try {
       await register(form.name, form.email, form.password);
-      toast.success('Account created! Welcome to IoT Dashboard 🎉');
+      toast.success('Account created! Welcome to Nexus IoT 🎉');
       navigate('/dashboard');
     } catch (err) {
       const msg = err.response?.data?.message || 'Registration failed. Please try again.';
@@ -58,7 +58,7 @@ const RegisterPage = () => {
             <Activity size={28} />
           </div>
           <div>
-            <h1><span className="gradient-text">IoT</span> Dashboard</h1>
+            <h1><span className="gradient-text">Nexus</span> IoT</h1>
             <p>Professional IoT Monitoring Platform</p>
           </div>
         </div>
