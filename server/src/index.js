@@ -112,34 +112,45 @@ socketHandler(io);
 
 // ─── Database Connection ─────────────────────────────────────────────────────
 const connectDB = async () => {
-  // First try local MongoDB
-  const localUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/iot_dashboard';
-  
+  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/iot_dashboard';
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  // In production, only use the configured MONGODB_URI (must be Atlas or real DB)
+  if (isProduction) {
+    try {
+      await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 10000 });
+      console.log('✅ MongoDB connected successfully');
+      return;
+    } catch (error) {
+      console.error('❌ MongoDB connection error:', error.message);
+      console.error('Set MONGODB_URI environment variable to a valid MongoDB Atlas URI');
+      process.exit(1);
+    }
+  }
+
+  // In development: try local MongoDB first, then fall back to in-memory
   try {
-    await mongoose.connect(localUri, { serverSelectionTimeoutMS: 3000 });
+    await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 3000 });
     console.log('✅ MongoDB connected successfully (local)');
     return;
   } catch (localError) {
     console.log('⚠️  Local MongoDB not available, trying in-memory server...');
   }
 
-  // Fallback: use mongodb-memory-server
+  // Fallback: use mongodb-memory-server (development only)
   try {
     const { MongoMemoryServer } = require('mongodb-memory-server');
     const mongod = await MongoMemoryServer.create();
     const uri = mongod.getUri();
     await mongoose.connect(uri);
-    console.log('✅ MongoDB connected successfully (in-memory)');
+    console.log('✅ MongoDB connected successfully (in-memory - dev mode)');
     console.log('ℹ️  Note: Data will be lost when server restarts (in-memory mode)');
-    console.log('ℹ️  To persist data, install MongoDB locally or use MongoDB Atlas');
     
-    // Handle cleanup on exit
     process.on('beforeExit', async () => {
       await mongod.stop();
     });
   } catch (memError) {
     console.error('❌ MongoDB connection error:', memError.message);
-    console.error('Please install MongoDB or configure MONGODB_URI in server/.env');
     process.exit(1);
   }
 };
