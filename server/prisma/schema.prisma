@@ -1,0 +1,144 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  name                String    @db.VarChar(50)
+  email               String    @unique @db.VarChar(255)
+  password            String
+  role                Role      @default(user)
+  isActive            Boolean   @default(true)
+  lastLogin           DateTime?
+  resetPasswordToken  String?
+  resetPasswordExpire DateTime?
+  emailNotifications  Boolean   @default(true)
+  // preferences stored as JSON
+  theme               String    @default("dark")
+  dashboardLayout     Json?     @default("{}")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  devices   Device[]
+  templates Template[]
+  alerts    Alert[]
+}
+
+enum Role {
+  user
+  admin
+}
+
+model Template {
+  id           String       @id @default(cuid())
+  templateId   String       @unique @default(cuid())
+  name         String       @db.VarChar(100)
+  description  String?      @db.VarChar(500)
+  category     String       @default("Custom")
+  hardwareType String       @default("ESP32")
+  isPublic     Boolean      @default(false)
+  defaultPins  Json?        @default("[]")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  createdBy   String
+  user        User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  devices     Device[]
+}
+
+model Device {
+  id             String      @id @default(cuid())
+  deviceId       String      @unique @default(cuid())
+  name           String      @db.VarChar(100)
+  description    String?     @db.VarChar(500)
+  templateId     String
+  authToken      String      @unique @default(cuid())
+  status         String      @default("offline")
+  lastSeen       DateTime?
+  isActive       Boolean     @default(true)
+  locationName   String?     @default("")
+  lat            Float?
+  lng            Float?
+  firmwareVersion String?    @default("1.0.0")
+  hardwareType   String?     @default("ESP32")
+  ipAddress      String?     @default("")
+  dashboardLayout Json?      @default("[]")
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  owner        String
+  user         User         @relation(fields: [owner], references: [id], onDelete: Cascade)
+  template     Template     @relation(fields: [templateId], references: [templateId])
+  virtualPins  VirtualPin[]
+  sensorData   SensorData[]
+  alerts       Alert[]
+}
+
+model VirtualPin {
+  id           String    @id @default(cuid())
+  deviceId     String
+  pinName      String    @db.VarChar(20)
+  label        String?   @default("") @db.VarChar(50)
+  sensorType   String    @default("custom")
+  unit         String?   @default("") @db.VarChar(20)
+  minValue     Float     @default(0)
+  maxValue     Float     @default(100)
+  currentValue Float?
+  lastUpdated  DateTime?
+  isActive     Boolean   @default(true)
+  color        String    @default("#00d4ff")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  device Device @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
+
+  @@unique([deviceId, pinName])
+}
+
+model SensorData {
+  id         String   @id @default(cuid())
+  deviceId   String
+  pin        String
+  value      Float
+  sensorType String   @default("custom")
+  unit       String?  @default("")
+  timestamp  DateTime @default(now())
+
+  device Device @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
+
+  @@index([deviceId, pin, timestamp(sort: Desc)])
+  @@index([deviceId, timestamp(sort: Desc)])
+}
+
+model Alert {
+  id               String    @id @default(cuid())
+  deviceId         String
+  name             String    @db.VarChar(100)
+  pin              String
+  condition        String
+  threshold        Float
+  notificationType Json      @default("[\"dashboard\"]")
+  message          String?   @default("") @db.VarChar(500)
+  isActive         Boolean   @default(true)
+  cooldownMinutes  Int       @default(5)
+  lastTriggered    DateTime?
+  triggerCount     Int       @default(0)
+  history          Json?     @default("[]")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  owner  String
+  user   User   @relation(fields: [owner], references: [id], onDelete: Cascade)
+  device Device @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
+
+  @@index([deviceId, isActive])
+  @@index([deviceId, pin])
+}

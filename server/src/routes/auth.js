@@ -1,10 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
-const User = require('../models/User');
+const bcrypt = require('bcryptjs');
+const prisma = require('../db/prisma');
 const generateToken = require('../utils/generateToken');
-const { protect } = require('../middleware/auth');
+const { protect, loginRateLimiter } = require('../middleware/auth');
 const { sendWelcomeEmail } = require('../utils/emailService');
+
+const safeUser = (user) => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  preferences: { theme: user.theme, dashboardLayout: user.dashboardLayout },
+  lastLogin: user.lastLogin,
+});
 
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 router.post(
@@ -12,7 +22,7 @@ router.post(
   [
     body('name').trim().notEmpty().withMessage('Name is required'),
     body('email').isEmail().withMessage('Valid email is required').normalizeEmail(),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -23,31 +33,25 @@ router.post(
     try {
       const { name, email, password } = req.body;
 
-      // Check if user already exists
-      const existingUser = await User.findOne({ email });
+      const existingUser = await prisma.user.findUnique({ where: { email } });
       if (existingUser) {
         return res.status(400).json({ success: false, message: 'Email already registered.' });
       }
 
-      // Create user
-      const user = await User.create({ name, email, password });
+      const hashedPassword = await bcrypt.hash(password, 12);
+      const user = await prisma.user.create({
+        data: { name, email, password: hashedPassword },
+      });
 
-      // Send welcome email (non-blocking)
       sendWelcomeEmail({ to: email, name }).catch(console.error);
 
-      const token = generateToken(user._id);
+      const token = generateToken(user.id);
 
       res.status(201).json({
         success: true,
         message: 'Account created successfully.',
         token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          preferences: user.preferences,
-        },
+        user: safeUser(user),
       });
     } catch (error) {
       console.error('Register error:', error);
@@ -59,6 +63,7 @@ router.post(
 // ─── POST /api/auth/login ─────────────────────────────────────────────────────
 router.post(
   '/login',
+  loginRateLimiter,
   [
     body('email').isEmail().withMessage('Valid email is required').normalizeEmail(),
     body('password').notEmpty().withMessage('Password is required'),
@@ -72,40 +77,31 @@ router.post(
     try {
       const { email, password } = req.body;
 
-      // Find user with password
-      const user = await User.findOne({ email }).select('+password');
-      if (!user) {
+      const user = await prisma.user.findUnique({ where: { email } });
+
+      let passwordCheck = false;
+      if (user) {
+        passwordCheck = await bcrypt.compare(password, user.password);
+      } else {
+        await bcrypt.hash(password, 12); // Timing attack prevention
+      }
+
+      if (!user || !passwordCheck || !user.isActive) {
         return res.status(401).json({ success: false, message: 'Invalid email or password.' });
       }
 
-      if (!user.isActive) {
-        return res.status(401).json({ success: false, message: 'Account is deactivated.' });
-      }
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLogin: new Date() },
+      });
 
-      // Check password
-      const isMatch = await user.comparePassword(password);
-      if (!isMatch) {
-        return res.status(401).json({ success: false, message: 'Invalid email or password.' });
-      }
-
-      // Update last login
-      user.lastLogin = new Date();
-      await user.save();
-
-      const token = generateToken(user._id);
+      const token = generateToken(user.id);
 
       res.json({
         success: true,
         message: 'Login successful.',
         token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          preferences: user.preferences,
-          lastLogin: user.lastLogin,
-        },
+        user: safeUser(updatedUser),
       });
     } catch (error) {
       console.error('Login error:', error);
@@ -117,8 +113,8 @@ router.post(
 // ─── GET /api/auth/me ─────────────────────────────────────────────────────────
 router.get('/me', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    res.json({ success: true, user });
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    res.json({ success: true, user: safeUser(user) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error.' });
   }
@@ -144,21 +140,24 @@ router.put(
 
       if (name) updateData.name = name;
       if (email) {
-        const existing = await User.findOne({ email, _id: { $ne: req.user._id } });
+        const existing = await prisma.user.findFirst({
+          where: { email, NOT: { id: req.user.id } },
+        });
         if (existing) {
           return res.status(400).json({ success: false, message: 'Email already in use.' });
         }
         updateData.email = email;
       }
-      if (preferences) updateData.preferences = { ...req.user.preferences, ...preferences };
+      if (preferences?.theme) updateData.theme = preferences.theme;
+      if (preferences?.dashboardLayout !== undefined) updateData.dashboardLayout = preferences.dashboardLayout;
       if (emailNotifications !== undefined) updateData.emailNotifications = emailNotifications;
 
-      const user = await User.findByIdAndUpdate(req.user._id, updateData, {
-        new: true,
-        runValidators: true,
+      const user = await prisma.user.update({
+        where: { id: req.user.id },
+        data: updateData,
       });
 
-      res.json({ success: true, message: 'Profile updated.', user });
+      res.json({ success: true, message: 'Profile updated.', user: safeUser(user) });
     } catch (error) {
       console.error('Profile update error:', error);
       res.status(500).json({ success: false, message: 'Server error.' });
@@ -172,7 +171,7 @@ router.put(
   protect,
   [
     body('currentPassword').notEmpty().withMessage('Current password is required'),
-    body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
+    body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters'),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -182,15 +181,18 @@ router.put(
 
     try {
       const { currentPassword, newPassword } = req.body;
-      const user = await User.findById(req.user._id).select('+password');
+      const user = await prisma.user.findUnique({ where: { id: req.user.id } });
 
-      const isMatch = await user.comparePassword(currentPassword);
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
       if (!isMatch) {
         return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
       }
 
-      user.password = newPassword;
-      await user.save();
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { password: hashedPassword },
+      });
 
       res.json({ success: true, message: 'Password changed successfully.' });
     } catch (error) {

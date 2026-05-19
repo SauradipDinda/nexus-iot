@@ -1,23 +1,31 @@
 const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
-const Template = require('../models/Template');
-const { protect, authorize } = require('../middleware/auth');
+const prisma = require('../db/prisma');
+const { protect } = require('../middleware/auth');
 
 router.use(protect);
+
+const formatTemplate = (t) => ({
+  ...t,
+  _id: t.id,
+  createdBy: t.user ? { _id: t.createdBy, name: t.user.name, email: t.user.email } : t.createdBy,
+});
 
 // ─── GET /api/templates ───────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
-    const query = req.user.role === 'admin'
+    const where = req.user.role === 'admin'
       ? {}
-      : { $or: [{ createdBy: req.user._id }, { isPublic: true }] };
+      : { OR: [{ createdBy: req.user.id }, { isPublic: true }] };
 
-    const templates = await Template.find(query)
-      .populate('createdBy', 'name email')
-      .sort({ createdAt: -1 });
+    const templates = await prisma.template.findMany({
+      where,
+      include: { user: { select: { name: true, email: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
 
-    res.json({ success: true, count: templates.length, templates });
+    res.json({ success: true, count: templates.length, templates: templates.map(formatTemplate) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error.' });
   }
@@ -43,17 +51,20 @@ router.post(
     try {
       const { name, description, category, hardwareType, isPublic, defaultPins } = req.body;
 
-      const template = await Template.create({
-        name,
-        description,
-        category: category || 'Custom',
-        hardwareType: hardwareType || 'ESP32',
-        isPublic: isPublic || false,
-        defaultPins: defaultPins || [],
-        createdBy: req.user._id,
+      const template = await prisma.template.create({
+        data: {
+          name,
+          description,
+          category: category || 'Custom',
+          hardwareType: hardwareType || 'ESP32',
+          isPublic: isPublic || false,
+          defaultPins: defaultPins || [],
+          createdBy: req.user.id,
+        },
+        include: { user: { select: { name: true, email: true } } },
       });
 
-      res.status(201).json({ success: true, message: 'Template created.', template });
+      res.status(201).json({ success: true, message: 'Template created.', template: formatTemplate(template) });
     } catch (error) {
       console.error('Create template error:', error);
       res.status(500).json({ success: false, message: 'Server error.' });
@@ -64,23 +75,21 @@ router.post(
 // ─── GET /api/templates/:id ───────────────────────────────────────────────────
 router.get('/:id', async (req, res) => {
   try {
-    const template = await Template.findOne({
-      $or: [
-        { _id: req.params.id.match(/^[0-9a-fA-F]{24}$/) ? req.params.id : null },
-        { templateId: req.params.id },
-      ],
-    }).populate('createdBy', 'name email');
+    const { id } = req.params;
+    const template = await prisma.template.findFirst({
+      where: { OR: [{ id }, { templateId: id }] },
+      include: { user: { select: { name: true, email: true } } },
+    });
 
     if (!template) {
       return res.status(404).json({ success: false, message: 'Template not found.' });
     }
 
-    // Check access
-    if (!template.isPublic && template.createdBy._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (!template.isPublic && template.createdBy !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Access denied.' });
     }
 
-    res.json({ success: true, template });
+    res.json({ success: true, template: formatTemplate(template) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error.' });
   }
@@ -89,31 +98,34 @@ router.get('/:id', async (req, res) => {
 // ─── PUT /api/templates/:id ───────────────────────────────────────────────────
 router.put('/:id', async (req, res) => {
   try {
-    const template = await Template.findOne({
-      $or: [
-        { _id: req.params.id.match(/^[0-9a-fA-F]{24}$/) ? req.params.id : null },
-        { templateId: req.params.id },
-      ],
+    const { id } = req.params;
+    const template = await prisma.template.findFirst({
+      where: { OR: [{ id }, { templateId: id }] },
     });
 
     if (!template) {
       return res.status(404).json({ success: false, message: 'Template not found.' });
     }
-
-    if (template.createdBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (template.createdBy !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Access denied.' });
     }
 
     const { name, description, category, hardwareType, isPublic, defaultPins } = req.body;
-    if (name) template.name = name;
-    if (description !== undefined) template.description = description;
-    if (category) template.category = category;
-    if (hardwareType) template.hardwareType = hardwareType;
-    if (isPublic !== undefined) template.isPublic = isPublic;
-    if (defaultPins) template.defaultPins = defaultPins;
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (category) updateData.category = category;
+    if (hardwareType) updateData.hardwareType = hardwareType;
+    if (isPublic !== undefined) updateData.isPublic = isPublic;
+    if (defaultPins) updateData.defaultPins = defaultPins;
 
-    await template.save();
-    res.json({ success: true, message: 'Template updated.', template });
+    const updated = await prisma.template.update({
+      where: { id: template.id },
+      data: updateData,
+      include: { user: { select: { name: true, email: true } } },
+    });
+
+    res.json({ success: true, message: 'Template updated.', template: formatTemplate(updated) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error.' });
   }
@@ -122,22 +134,19 @@ router.put('/:id', async (req, res) => {
 // ─── DELETE /api/templates/:id ────────────────────────────────────────────────
 router.delete('/:id', async (req, res) => {
   try {
-    const template = await Template.findOne({
-      $or: [
-        { _id: req.params.id.match(/^[0-9a-fA-F]{24}$/) ? req.params.id : null },
-        { templateId: req.params.id },
-      ],
+    const { id } = req.params;
+    const template = await prisma.template.findFirst({
+      where: { OR: [{ id }, { templateId: id }] },
     });
 
     if (!template) {
       return res.status(404).json({ success: false, message: 'Template not found.' });
     }
-
-    if (template.createdBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (template.createdBy !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Access denied.' });
     }
 
-    await template.deleteOne();
+    await prisma.template.delete({ where: { id: template.id } });
     res.json({ success: true, message: 'Template deleted.' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error.' });

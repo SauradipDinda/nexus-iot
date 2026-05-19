@@ -7,10 +7,10 @@ headers = []
 [functions."*"]
 
 [build]
-publish = "C:\\Users\\Saura\\OneDrive\\Pictures\\Desktop\\iot_web\\client\\build"
+publish = "c:\\Users\\Saura\\OneDrive\\Pictures\\Desktop\\iot_web\\client\\build"
 publishOrigin = "config"
 commandOrigin = "config"
-base = "C:\\Users\\Saura\\OneDrive\\Pictures\\Desktop\\iot_web\\client"
+base = "c:\\Users\\Saura\\OneDrive\\Pictures\\Desktop\\iot_web\\client"
 command = "npm run build"
 
 [build.environment]

@@ -97,6 +97,11 @@
   background: rgba(0, 212, 255, 0.1);
 }
 
+.widget-delete-btn:hover {
+  color: var(--accent-red);
+  background: rgba(255, 71, 87, 0.1);
+}
+
 .widget-inner {
   flex: 1;
   display: flex;

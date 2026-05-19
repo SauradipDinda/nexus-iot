@@ -28,7 +28,7 @@
 #define WIFI_PASSWORD "Your_WiFi_Password"
 
 // ─── Server Configuration ─────────────────────────────────────────────────────
-#define SERVER_URL    "http://your-server-ip:5000"  // Your IoT Dashboard server
+#define SERVER_URL    "http://192.168.0.93:5000"  // Your IoT Dashboard server
 #define PUBLISH_URL   SERVER_URL "/api/data/publish"
 
 // ─── Sensor Configuration ─────────────────────────────────────────────────────

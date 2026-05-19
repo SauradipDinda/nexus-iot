@@ -294,6 +294,23 @@ const DeviceDetailPage = () => {
     });
   };
 
+  const handleDeletePin = async (pinName) => {
+    if (!window.confirm(`Delete virtual pin "${pinName}"?`)) return;
+    try {
+      await pinAPI.delete(deviceId, pinName);
+      setPins((prev) => prev.filter(p => p.pinName !== pinName));
+      setLayout((prev) => prev.filter(item => item.i !== pinName));
+      setWidgetTypes((prev) => {
+        const newTypes = { ...prev };
+        delete newTypes[pinName];
+        return newTypes;
+      });
+      toast.success(`Pin ${pinName} deleted`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete pin');
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-screen" style={{ minHeight: '60vh' }}>
@@ -406,6 +423,13 @@ const DeviceDetailPage = () => {
                       title="Change widget type"
                     >
                       <RefreshCw size={12} />
+                    </button>
+                    <button
+                      className="widget-action-btn widget-delete-btn"
+                      onClick={() => handleDeletePin(pin.pinName)}
+                      title="Delete pin"
+                    >
+                      <Trash2 size={12} />
                     </button>
                   </div>
                 </div>

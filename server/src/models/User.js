@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const validator = require('validator');
 
 const userSchema = new mongoose.Schema(
   {
@@ -8,6 +9,12 @@ const userSchema = new mongoose.Schema(
       required: [true, 'Name is required'],
       trim: true,
       maxlength: [50, 'Name cannot exceed 50 characters'],
+      validate: {
+        validator: function(v) {
+          return /^[a-zA-Z0-9\s\-_.]+$/.test(v);
+        },
+        message: 'Name can only contain letters, numbers, spaces, hyphens, underscores, and periods'
+      }
     },
     email: {
       type: String,
@@ -15,13 +22,26 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
+      validate: {
+        validator: function(v) {
+          return validator.isEmail(v);
+        },
+        message: 'Please enter a valid email address'
+      }
     },
     password: {
       type: String,
       required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters'],
+      minlength: [8, 'Password must be at least 8 characters'],
       select: false, // Don't return password by default
+      validate: {
+        validator: function(v) {
+          // Password must contain at least one uppercase, one lowercase, one number, and one special character
+          const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+          return passwordRegex.test(v);
+        },
+        message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'
+      }
     },
     role: {
       type: String,
@@ -66,11 +86,21 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 
 // Remove sensitive fields from JSON output
 userSchema.methods.toJSON = function () {
-  const obj = this.toObject();
-  delete obj.password;
-  delete obj.resetPasswordToken;
-  delete obj.resetPasswordExpire;
-  return obj;
+  try {
+    const obj = this.toObject();
+    delete obj.password;
+    delete obj.resetPasswordToken;
+    delete obj.resetPasswordExpire;
+    // Ensure _id is properly handled
+    if (obj._id) {
+      obj.id = obj._id.toString();
+      delete obj._id;
+    }
+    return obj;
+  } catch (error) {
+    console.error('Error in User toJSON method:', error);
+    return {};
+  }
 };
 
 module.exports = mongoose.model('User', userSchema);

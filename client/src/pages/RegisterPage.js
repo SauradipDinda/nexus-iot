@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Activity, Mail, Lock, Eye, EyeOff, User, Wifi } from 'lucide-react';
+import { motion } from 'framer-motion';
 import './AuthPages.css';
 
 const RegisterPage = () => {
@@ -18,16 +19,34 @@ const RegisterPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Validate required fields
     if (!form.name || !form.email || !form.password) {
       toast.error('Please fill in all fields');
       return;
     }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    
+    // Validate password match
     if (form.password !== form.confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
-    if (form.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    
+    // Validate password strength
+    if (form.password.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+    
+    // Validate name length
+    if (form.name.length < 2 || form.name.length > 50) {
+      toast.error('Name must be between 2 and 50 characters');
       return;
     }
 
@@ -63,7 +82,12 @@ const RegisterPage = () => {
           </div>
         </div>
 
-        <div className="auth-card">
+        <motion.div 
+          className="auth-card"
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5, ease: [0.25, 0.8, 0.25, 1] }}
+        >
           <div className="auth-card-header">
             <h2>Create Account</h2>
             <p>Start monitoring your IoT devices today</p>
@@ -110,7 +134,7 @@ const RegisterPage = () => {
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   className="form-input with-icon with-icon-right"
-                  placeholder="Min. 6 characters"
+                  placeholder="Min. 8 characters"
                   value={form.password}
                   onChange={handleChange}
                   autoComplete="new-password"
@@ -166,7 +190,7 @@ const RegisterPage = () => {
               <Link to="/login">Sign in</Link>
             </p>
           </div>
-        </div>
+        </motion.div>
 
         <div className="auth-features">
           {['Free to start', 'Unlimited devices', 'Real-time data', 'Smart alerts'].map((f) => (

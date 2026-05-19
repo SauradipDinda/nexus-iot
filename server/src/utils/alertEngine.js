@@ -1,10 +1,6 @@
-const Alert = require('../models/Alert');
-const User = require('../models/User');
+const prisma = require('../db/prisma');
 const { sendAlertEmail } = require('./emailService');
 
-/**
- * Evaluate a condition against a value
- */
 const evaluateCondition = (value, condition, threshold) => {
   switch (condition) {
     case '>':  return value > threshold;
@@ -17,26 +13,14 @@ const evaluateCondition = (value, condition, threshold) => {
   }
 };
 
-/**
- * Process incoming sensor data against all active alerts for a device
- * @param {Object} io - Socket.io instance
- * @param {string} deviceId - Device ID string
- * @param {string} deviceName - Device name
- * @param {string} pin - Virtual pin name (e.g., "V0")
- * @param {number} value - Sensor value
- */
 const processAlerts = async (io, deviceId, deviceName, pin, value) => {
   try {
-    // Find all active alerts for this device and pin
-    const alerts = await Alert.find({
-      deviceId,
-      pin: pin.toUpperCase(),
-      isActive: true,
+    const alerts = await prisma.alert.findMany({
+      where: { deviceId, pin: pin.toUpperCase(), isActive: true },
     });
 
     for (const alert of alerts) {
       const triggered = evaluateCondition(value, alert.condition, alert.threshold);
-
       if (!triggered) continue;
 
       // Check cooldown
@@ -47,19 +31,21 @@ const processAlerts = async (io, deviceId, deviceName, pin, value) => {
       }
 
       // Update alert record
-      alert.lastTriggered = new Date();
-      alert.triggerCount += 1;
-      alert.history.push({ triggeredAt: new Date(), value, notified: true });
+      const history = Array.isArray(alert.history) ? alert.history : [];
+      history.push({ triggeredAt: new Date(), value, notified: true });
+      const trimmedHistory = history.slice(-50);
 
-      // Keep history to last 50 entries
-      if (alert.history.length > 50) {
-        alert.history = alert.history.slice(-50);
-      }
-
-      await alert.save();
+      await prisma.alert.update({
+        where: { id: alert.id },
+        data: {
+          lastTriggered: new Date(),
+          triggerCount: { increment: 1 },
+          history: trimmedHistory,
+        },
+      });
 
       const alertPayload = {
-        alertId: alert._id,
+        alertId: alert.id,
         alertName: alert.name,
         deviceId,
         deviceName,
@@ -68,18 +54,17 @@ const processAlerts = async (io, deviceId, deviceName, pin, value) => {
         threshold: alert.threshold,
         currentValue: value,
         message: alert.message || `${pin} ${alert.condition} ${alert.threshold} (current: ${value})`,
-        triggeredAt: alert.lastTriggered,
+        triggeredAt: new Date(),
       };
 
-      // Broadcast alert via WebSocket to device room
       if (io) {
         io.to(`device:${deviceId}`).emit('alert_triggered', alertPayload);
-        io.to(`user:${alert.owner.toString()}`).emit('alert_triggered', alertPayload);
+        io.to(`user:${alert.owner}`).emit('alert_triggered', alertPayload);
       }
 
-      // Send email notification if configured
-      if (alert.notificationType.includes('email')) {
-        const owner = await User.findById(alert.owner);
+      const notificationType = Array.isArray(alert.notificationType) ? alert.notificationType : [];
+      if (notificationType.includes('email')) {
+        const owner = await prisma.user.findUnique({ where: { id: alert.owner } });
         if (owner && owner.email && owner.emailNotifications) {
           await sendAlertEmail({
             to: owner.email,

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Activity, Mail, Lock, Eye, EyeOff, Wifi } from 'lucide-react';
+import { motion } from 'framer-motion';
 import './AuthPages.css';
 
 const LoginPage = () => {
@@ -58,7 +59,12 @@ const LoginPage = () => {
         </div>
 
         {/* Card */}
-        <div className="auth-card">
+        <motion.div 
+          className="auth-card"
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5, ease: [0.25, 0.8, 0.25, 1] }}
+        >
           <div className="auth-card-header">
             <h2>Welcome Back</h2>
             <p>Sign in to your account to continue</p>
@@ -129,7 +135,7 @@ const LoginPage = () => {
               <Link to="/register">Create one free</Link>
             </p>
           </div>
-        </div>
+        </motion.div>
 
         {/* Features */}
         <div className="auth-features">

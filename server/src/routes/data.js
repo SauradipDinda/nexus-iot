@@ -1,14 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const Device = require('../models/Device');
-const VirtualPin = require('../models/VirtualPin');
-const SensorData = require('../models/SensorData');
+const prisma = require('../db/prisma');
 const { deviceAuth } = require('../middleware/auth');
 const { protect } = require('../middleware/auth');
 const { processAlerts } = require('../utils/alertEngine');
 
 // ─── POST /api/data/publish ───────────────────────────────────────────────────
-// IoT device publishes sensor data (uses device auth token)
 router.post('/publish', deviceAuth, async (req, res) => {
   try {
     const { virtual_pins, timestamp } = req.body;
@@ -22,41 +19,38 @@ router.post('/publish', deviceAuth, async (req, res) => {
     const dataTimestamp = timestamp ? new Date(timestamp) : new Date();
     const savedData = [];
 
-    // Process each virtual pin
     for (const [pin, value] of Object.entries(virtual_pins)) {
       const pinName = pin.toUpperCase();
       const numericValue = parseFloat(value);
-
       if (isNaN(numericValue)) continue;
 
-      // Find or create virtual pin record
-      let vPin = await VirtualPin.findOne({ deviceId: device.deviceId, pinName });
+      // Find or create virtual pin
+      let vPin = await prisma.virtualPin.findUnique({
+        where: { deviceId_pinName: { deviceId: device.deviceId, pinName } },
+      });
 
       if (!vPin) {
-        // Auto-create pin if it doesn't exist
-        vPin = await VirtualPin.create({
-          device: device._id,
-          deviceId: device.deviceId,
-          pinName,
-          label: pinName,
-          sensorType: 'custom',
+        vPin = await prisma.virtualPin.create({
+          data: { deviceId: device.deviceId, pinName, label: pinName, sensorType: 'custom' },
         });
       }
 
-      // Update current value on virtual pin
-      vPin.currentValue = numericValue;
-      vPin.lastUpdated = dataTimestamp;
-      await vPin.save();
+      // Update current value
+      await prisma.virtualPin.update({
+        where: { id: vPin.id },
+        data: { currentValue: numericValue, lastUpdated: dataTimestamp },
+      });
 
-      // Save to sensor data history
-      const sensorRecord = await SensorData.create({
-        device: device._id,
-        deviceId: device.deviceId,
-        pin: pinName,
-        value: numericValue,
-        sensorType: vPin.sensorType,
-        unit: vPin.unit,
-        timestamp: dataTimestamp,
+      // Save history
+      await prisma.sensorData.create({
+        data: {
+          deviceId: device.deviceId,
+          pin: pinName,
+          value: numericValue,
+          sensorType: vPin.sensorType,
+          unit: vPin.unit || '',
+          timestamp: dataTimestamp,
+        },
       });
 
       savedData.push({ pin: pinName, value: numericValue });
@@ -73,10 +67,10 @@ router.post('/publish', deviceAuth, async (req, res) => {
           timestamp: dataTimestamp.toISOString(),
         };
         io.to(`device:${device.deviceId}`).emit('sensor_data', payload);
-        io.to(`user:${device.owner.toString()}`).emit('sensor_data', payload);
+        io.to(`user:${device.owner}`).emit('sensor_data', payload);
       }
 
-      // Run alert engine for this pin
+      // Run alert engine
       await processAlerts(io, device.deviceId, device.name, pinName, numericValue);
     }
 
@@ -93,23 +87,22 @@ router.post('/publish', deviceAuth, async (req, res) => {
 });
 
 // ─── GET /api/data/latest/:deviceId ──────────────────────────────────────────
-// Get latest values for all pins of a device (dashboard polling)
 router.get('/latest/:deviceId', protect, async (req, res) => {
   try {
     const { deviceId } = req.params;
 
-    // Verify ownership
-    const device = await Device.findOne({
-      deviceId,
-      ...(req.user.role !== 'admin' ? { owner: req.user._id } : {}),
-      isActive: true,
-    });
+    const whereDevice = req.user.role === 'admin'
+      ? { deviceId, isActive: true }
+      : { deviceId, owner: req.user.id, isActive: true };
 
+    const device = await prisma.device.findFirst({ where: whereDevice });
     if (!device) {
       return res.status(404).json({ success: false, message: 'Device not found.' });
     }
 
-    const virtualPins = await VirtualPin.find({ deviceId, isActive: true });
+    const virtualPins = await prisma.virtualPin.findMany({
+      where: { deviceId, isActive: true },
+    });
 
     const latestData = virtualPins.map((vp) => ({
       pin: vp.pinName,
@@ -123,7 +116,6 @@ router.get('/latest/:deviceId', protect, async (req, res) => {
       lastUpdated: vp.lastUpdated,
     }));
 
-    // Check device online status
     const isOnline = device.lastSeen && Date.now() - new Date(device.lastSeen).getTime() < 5 * 60 * 1000;
 
     res.json({
@@ -141,43 +133,35 @@ router.get('/latest/:deviceId', protect, async (req, res) => {
 });
 
 // ─── GET /api/data/history/:deviceId ─────────────────────────────────────────
-// Get historical data for a device/pin
 router.get('/history/:deviceId', protect, async (req, res) => {
   try {
     const { deviceId } = req.params;
     const { pin, from, to, limit = 100 } = req.query;
 
-    // Verify ownership
-    const device = await Device.findOne({
-      deviceId,
-      ...(req.user.role !== 'admin' ? { owner: req.user._id } : {}),
-      isActive: true,
-    });
+    const whereDevice = req.user.role === 'admin'
+      ? { deviceId, isActive: true }
+      : { deviceId, owner: req.user.id, isActive: true };
 
+    const device = await prisma.device.findFirst({ where: whereDevice });
     if (!device) {
       return res.status(404).json({ success: false, message: 'Device not found.' });
     }
 
-    const query = { deviceId };
-    if (pin) query.pin = pin.toUpperCase();
-
-    // Date range filter
+    const where = { deviceId };
+    if (pin) where.pin = pin.toUpperCase();
     if (from || to) {
-      query.timestamp = {};
-      if (from) query.timestamp.$gte = new Date(from);
-      if (to) query.timestamp.$lte = new Date(to);
+      where.timestamp = {};
+      if (from) where.timestamp.gte = new Date(from);
+      if (to) where.timestamp.lte = new Date(to);
     }
 
-    const data = await SensorData.find(query)
-      .sort({ timestamp: -1 })
-      .limit(Math.min(parseInt(limit), 1000));
-
-    res.json({
-      success: true,
-      deviceId,
-      count: data.length,
-      data: data.reverse(), // Return in chronological order
+    const data = await prisma.sensorData.findMany({
+      where,
+      orderBy: { timestamp: 'asc' },
+      take: Math.min(parseInt(limit), 1000),
     });
+
+    res.json({ success: true, deviceId, count: data.length, data });
   } catch (error) {
     console.error('Get history error:', error);
     res.status(500).json({ success: false, message: 'Server error.' });

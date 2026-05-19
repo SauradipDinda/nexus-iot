@@ -1,6 +1,17 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const Device = require('../models/Device');
+const rateLimit = require('express-rate-limit');
+const prisma = require('../db/prisma');
+
+/**
+ * Rate limiter for login attempts
+ */
+const loginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { success: false, message: 'Too many login attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 /**
  * Middleware: Protect routes — requires valid JWT
@@ -8,21 +19,15 @@ const Device = require('../models/Device');
 const protect = async (req, res, next) => {
   try {
     let token;
-
-    // Check Authorization header
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
       token = req.headers.authorization.split(' ')[1];
     }
-
     if (!token) {
       return res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
     }
 
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Get user from DB
-    const user = await User.findById(decoded.id);
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
     if (!user || !user.isActive) {
       return res.status(401).json({ success: false, message: 'User not found or deactivated.' });
     }
@@ -56,7 +61,7 @@ const authorize = (...roles) => {
 };
 
 /**
- * Middleware: Authenticate device via Auth Token (for IoT devices)
+ * Middleware: Authenticate IoT device via Auth Token
  */
 const deviceAuth = async (req, res, next) => {
   try {
@@ -69,17 +74,17 @@ const deviceAuth = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Device auth token required.' });
     }
 
-    // Find device by auth token (include authToken field)
-    const device = await Device.findOne({ authToken, isActive: true }).select('+authToken');
+    const device = await prisma.device.findUnique({ where: { authToken } });
 
-    if (!device) {
+    if (!device || !device.isActive) {
       return res.status(401).json({ success: false, message: 'Invalid or revoked device token.' });
     }
 
-    // Update device last seen and status
-    device.lastSeen = new Date();
-    device.status = 'online';
-    await device.save();
+    // Update last seen
+    await prisma.device.update({
+      where: { id: device.id },
+      data: { lastSeen: new Date(), status: 'online' },
+    });
 
     req.device = device;
     next();
@@ -89,4 +94,4 @@ const deviceAuth = async (req, res, next) => {
   }
 };
 
-module.exports = { protect, authorize, deviceAuth };
+module.exports = { protect, authorize, deviceAuth, loginRateLimiter };

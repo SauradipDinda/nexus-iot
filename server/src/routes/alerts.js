@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
-const Alert = require('../models/Alert');
-const Device = require('../models/Device');
+const prisma = require('../db/prisma');
 const { protect } = require('../middleware/auth');
 
 router.use(protect);
@@ -10,10 +9,13 @@ router.use(protect);
 // ─── GET /api/alerts ──────────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
-    const query = req.user.role === 'admin' ? {} : { owner: req.user._id };
-    const alerts = await Alert.find(query)
-      .populate('device', 'name deviceId')
-      .sort({ createdAt: -1 });
+    const where = req.user.role === 'admin' ? {} : { owner: req.user.id };
+
+    const alerts = await prisma.alert.findMany({
+      where,
+      include: { device: { select: { name: true, deviceId: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
 
     res.json({ success: true, count: alerts.length, alerts });
   } catch (error) {
@@ -26,17 +28,20 @@ router.get('/device/:deviceId', async (req, res) => {
   try {
     const { deviceId } = req.params;
 
-    const device = await Device.findOne({
-      deviceId,
-      ...(req.user.role !== 'admin' ? { owner: req.user._id } : {}),
-      isActive: true,
-    });
+    const whereDevice = req.user.role === 'admin'
+      ? { deviceId, isActive: true }
+      : { deviceId, owner: req.user.id, isActive: true };
 
+    const device = await prisma.device.findFirst({ where: whereDevice });
     if (!device) {
       return res.status(404).json({ success: false, message: 'Device not found.' });
     }
 
-    const alerts = await Alert.find({ deviceId }).sort({ createdAt: -1 });
+    const alerts = await prisma.alert.findMany({
+      where: { deviceId },
+      orderBy: { createdAt: 'desc' },
+    });
+
     res.json({ success: true, count: alerts.length, alerts });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error.' });
@@ -62,22 +67,25 @@ router.post(
     try {
       const { deviceId, name, pin, condition, threshold, notificationType, message, cooldownMinutes } = req.body;
 
-      const device = await Device.findOne({ deviceId, owner: req.user._id, isActive: true });
+      const device = await prisma.device.findFirst({
+        where: { deviceId, owner: req.user.id, isActive: true },
+      });
       if (!device) {
         return res.status(404).json({ success: false, message: 'Device not found.' });
       }
 
-      const alert = await Alert.create({
-        device: device._id,
-        deviceId,
-        owner: req.user._id,
-        name,
-        pin: pin.toUpperCase(),
-        condition,
-        threshold: parseFloat(threshold),
-        notificationType: notificationType || ['dashboard'],
-        message: message || '',
-        cooldownMinutes: cooldownMinutes || 5,
+      const alert = await prisma.alert.create({
+        data: {
+          deviceId,
+          owner: req.user.id,
+          name,
+          pin: pin.toUpperCase(),
+          condition,
+          threshold: parseFloat(threshold),
+          notificationType: notificationType || ['dashboard'],
+          message: message || '',
+          cooldownMinutes: cooldownMinutes || 5,
+        },
       });
 
       res.status(201).json({ success: true, message: 'Alert created.', alert });
@@ -91,23 +99,26 @@ router.post(
 // ─── PUT /api/alerts/:id ──────────────────────────────────────────────────────
 router.put('/:id', async (req, res) => {
   try {
-    const alert = await Alert.findOne({ _id: req.params.id, owner: req.user._id });
+    const alert = await prisma.alert.findFirst({
+      where: { id: req.params.id, owner: req.user.id },
+    });
     if (!alert) {
       return res.status(404).json({ success: false, message: 'Alert not found.' });
     }
 
     const { name, pin, condition, threshold, notificationType, message, isActive, cooldownMinutes } = req.body;
-    if (name) alert.name = name;
-    if (pin) alert.pin = pin.toUpperCase();
-    if (condition) alert.condition = condition;
-    if (threshold !== undefined) alert.threshold = parseFloat(threshold);
-    if (notificationType) alert.notificationType = notificationType;
-    if (message !== undefined) alert.message = message;
-    if (isActive !== undefined) alert.isActive = isActive;
-    if (cooldownMinutes) alert.cooldownMinutes = cooldownMinutes;
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (pin) updateData.pin = pin.toUpperCase();
+    if (condition) updateData.condition = condition;
+    if (threshold !== undefined) updateData.threshold = parseFloat(threshold);
+    if (notificationType) updateData.notificationType = notificationType;
+    if (message !== undefined) updateData.message = message;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    if (cooldownMinutes) updateData.cooldownMinutes = cooldownMinutes;
 
-    await alert.save();
-    res.json({ success: true, message: 'Alert updated.', alert });
+    const updated = await prisma.alert.update({ where: { id: alert.id }, data: updateData });
+    res.json({ success: true, message: 'Alert updated.', alert: updated });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error.' });
   }
@@ -116,12 +127,14 @@ router.put('/:id', async (req, res) => {
 // ─── DELETE /api/alerts/:id ───────────────────────────────────────────────────
 router.delete('/:id', async (req, res) => {
   try {
-    const alert = await Alert.findOne({ _id: req.params.id, owner: req.user._id });
+    const alert = await prisma.alert.findFirst({
+      where: { id: req.params.id, owner: req.user.id },
+    });
     if (!alert) {
       return res.status(404).json({ success: false, message: 'Alert not found.' });
     }
 
-    await alert.deleteOne();
+    await prisma.alert.delete({ where: { id: alert.id } });
     res.json({ success: true, message: 'Alert deleted.' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error.' });
