@@ -1,5 +1,6 @@
 const prisma = require('../db/prisma');
 const { sendAlertEmail } = require('./emailService');
+const { sendAlertSMS } = require('./smsService');
 
 const evaluateCondition = (value, condition, threshold) => {
   switch (condition) {
@@ -68,6 +69,21 @@ const processAlerts = async (io, deviceId, deviceName, pin, value) => {
         if (owner && owner.email && owner.emailNotifications) {
           await sendAlertEmail({
             to: owner.email,
+            deviceName,
+            pinName: pin,
+            condition: alert.condition,
+            threshold: alert.threshold,
+            currentValue: value,
+            alertName: alert.name,
+          });
+        }
+      }
+
+      if (notificationType.includes('sms')) {
+        const owner = await prisma.user.findUnique({ where: { id: alert.owner } });
+        if (owner && owner.phoneNumber && owner.smsNotifications) {
+          await sendAlertSMS({
+            to: owner.phoneNumber,
             deviceName,
             pinName: pin,
             condition: alert.condition,

@@ -6,7 +6,7 @@ import { User, Mail, Lock, Save, Shield } from 'lucide-react';
 
 const ProfilePage = () => {
   const { user, updateUser } = useAuth();
-  const [profileForm, setProfileForm] = useState({ name: user?.name || '', email: user?.email || '' });
+  const [profileForm, setProfileForm] = useState({ name: user?.name || '', email: user?.email || '', phoneNumber: user?.phoneNumber || '', smsNotifications: user?.smsNotifications || false });
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPw, setSavingPw] = useState(false);
@@ -71,6 +71,14 @@ const ProfilePage = () => {
           <div className="form-group">
             <label className="form-label">Email Address</label>
             <input type="email" className="form-input" value={profileForm.email} onChange={e => setProfileForm({ ...profileForm, email: e.target.value })} required />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Phone Number (with country code)</label>
+            <input type="tel" className="form-input" placeholder="+1234567890" value={profileForm.phoneNumber} onChange={e => setProfileForm({ ...profileForm, phoneNumber: e.target.value })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
+            <input type="checkbox" id="smsNotifications" checked={profileForm.smsNotifications} onChange={e => setProfileForm({ ...profileForm, smsNotifications: e.target.checked })} style={{ width: '1.2rem', height: '1.2rem', accentColor: 'var(--accent-purple)' }} />
+            <label htmlFor="smsNotifications" style={{ cursor: 'pointer', color: 'var(--text-secondary)' }}>Enable SMS Notifications</label>
           </div>
           <button type="submit" className="btn btn-primary" disabled={savingProfile}>
             {savingProfile ? 'Saving...' : <><Save size={16} /> Save Changes</>}

@@ -135,7 +135,7 @@ router.put(
     }
 
     try {
-      const { name, email, preferences, emailNotifications } = req.body;
+      const { name, email, preferences, emailNotifications, phoneNumber, smsNotifications } = req.body;
       const updateData = {};
 
       if (name) updateData.name = name;
@@ -151,6 +151,8 @@ router.put(
       if (preferences?.theme) updateData.theme = preferences.theme;
       if (preferences?.dashboardLayout !== undefined) updateData.dashboardLayout = preferences.dashboardLayout;
       if (emailNotifications !== undefined) updateData.emailNotifications = emailNotifications;
+      if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+      if (smsNotifications !== undefined) updateData.smsNotifications = smsNotifications;
 
       const user = await prisma.user.update({
         where: { id: req.user.id },

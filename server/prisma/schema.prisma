@@ -21,6 +21,8 @@ model User {
   resetPasswordToken  String?
   resetPasswordExpire DateTime?
   emailNotifications  Boolean   @default(true)
+  phoneNumber         String?   @db.VarChar(20)
+  smsNotifications    Boolean   @default(false)
   // preferences stored as JSON
   theme               String    @default("dark")
   dashboardLayout     Json?     @default("{}")

@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { Bell, Plus, Trash2, Edit3, X, ToggleLeft, ToggleRight } from 'lucide-react';
 
 const CONDITIONS = ['>', '<', '>=', '<=', '==', '!='];
-const NOTIFY_TYPES = ['dashboard', 'email'];
+const NOTIFY_TYPES = ['dashboard', 'email', 'sms'];
 
 const AlertsPage = () => {
   const [alerts, setAlerts] = useState([]);
