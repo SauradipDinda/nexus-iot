@@ -82,7 +82,7 @@ const AnalyticsPage = () => {
         <div className="form-group" style={{ margin: 0, minWidth: '180px' }}>
           <label className="form-label">Device</label>
           <select className="form-select" value={selectedDevice} onChange={e => setSelectedDevice(e.target.value)}>
-            {devices.map(d => <option key={d._id} value={d.deviceId}>{d.name}</option>)}
+            {devices.map(d => <option key={d.id} value={d.deviceId}>{d.name}</option>)}
           </select>
         </div>
         <div className="form-group" style={{ margin: 0 }}>
@@ -111,9 +111,9 @@ const AnalyticsPage = () => {
       {summary && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
           {summary.pinStats?.map((stat, i) => (
-            <div key={stat._id} className="card" style={{ padding: '1rem' }}>
+            <div key={stat.id} className="card" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <span style={{ fontFamily: 'monospace', color: COLORS[i % COLORS.length], fontWeight: 700 }}>{stat._id}</span>
+                <span style={{ fontFamily: 'monospace', color: COLORS[i % COLORS.length], fontWeight: 700 }}>{stat.id}</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{stat.count} pts</span>
               </div>
               <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>{stat.latest?.toFixed(2)}</div>

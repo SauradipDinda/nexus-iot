@@ -44,7 +44,7 @@ const DevicesPage = () => {
     try {
       await deviceAPI.delete(id);
       toast.success('Device deleted');
-      setDevices(prev => prev.filter(d => d.deviceId !== id && d._id !== id));
+      setDevices(prev => prev.filter(d => d.deviceId !== id && d.id !== id));
     } catch { toast.error('Failed to delete device'); }
   };
 
@@ -99,7 +99,7 @@ const DevicesPage = () => {
               {filtered.map(device => {
                 const isOnline = device.status === 'online';
                 return (
-                  <tr key={device._id}>
+                  <tr key={device.id}>
                     <td><strong>{device.name}</strong></td>
                     <td><code style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{device.deviceId}</code></td>
                     <td>{device.template?.name || device.templateId}</td>
@@ -144,7 +144,7 @@ const DevicesPage = () => {
                 <label className="form-label">Template *</label>
                 <select className="form-select" value={form.templateId} onChange={e => setForm({ ...form, templateId: e.target.value })} required>
                   <option value="">Select a template...</option>
-                  {templates.map(t => <option key={t._id} value={t.templateId}>{t.name} ({t.templateId})</option>)}
+                  {templates.map(t => <option key={t.id} value={t.templateId}>{t.name} ({t.templateId})</option>)}
                 </select>
                 {templates.length === 0 && <p style={{ fontSize: '0.8rem', color: 'var(--accent-orange)', marginTop: '0.3rem' }}>⚠ No templates found. <a href="/templates">Create one first</a></p>}
               </div>

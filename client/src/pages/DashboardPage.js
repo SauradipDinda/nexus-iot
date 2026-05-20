@@ -230,7 +230,7 @@ const DashboardPage = () => {
           <div className="devices-grid">
             {devices.slice(0, 6).map((device) => (
               <DeviceCard
-                key={device._id}
+                key={device.id}
                 device={device}
                 onClick={(id) => navigate(`/devices/${id}`)}
               />

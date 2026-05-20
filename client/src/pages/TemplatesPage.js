@@ -94,7 +94,7 @@ const TemplatesPage = () => {
       ) : (
         <div className="devices-grid">
           {templates.map(t => (
-            <div key={t._id} className="card" style={{ cursor: 'default' }}>
+            <div key={t.id} className="card" style={{ cursor: 'default' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 600, color: categoryColors[t.category] || 'var(--accent-cyan)', background: `${categoryColors[t.category]}20`, padding: '0.2rem 0.6rem', borderRadius: '20px' }}>
                   {t.category}

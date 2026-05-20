@@ -43,14 +43,14 @@ router.get('/summary/:deviceId', async (req, res) => {
     }
 
     const pinStats = Object.entries(pinMap).map(([pin, data]) => ({
-      _id: pin,
+      id: pin,
       min: Math.min(...data.values),
       max: Math.max(...data.values),
       avg: data.values.reduce((a, b) => a + b, 0) / data.values.length,
       count: data.values.length,
       latest: data.latest,
       latestTime: data.latestTime,
-    })).sort((a, b) => a._id.localeCompare(b._id));
+    })).sort((a, b) => a.id.localeCompare(b.id));
 
     const totalDataPoints = sensorData.length;
     const alertCount = await prisma.alert.count({ where: { deviceId, isActive: true } });

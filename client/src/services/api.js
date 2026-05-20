@@ -91,17 +91,18 @@ export const analyticsAPI = {
   getChartData: (deviceId, params) => api.get(`/analytics/chart/${deviceId}`, { params }),
   getDashboardStats: () => api.get('/analytics/dashboard-stats'),
   exportCSV: (deviceId, params) => {
-    const token = localStorage.getItem('iot_token');
-    const queryString = new URLSearchParams(params).toString();
-    const url = `${API_BASE}/analytics/export/${deviceId}?${queryString}`;
-    // Trigger download
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `${deviceId}_data.csv`);
-    link.setAttribute('Authorization', `Bearer ${token}`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    return api.get(`/analytics/export/${deviceId}`, {
+      params,
+      responseType: 'blob',
+    }).then((response) => {
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${deviceId}_data.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
   },
 };
 

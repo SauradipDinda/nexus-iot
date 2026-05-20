@@ -37,7 +37,7 @@ const AlertsPage = () => {
     setSubmitting(true);
     try {
       if (editAlert) {
-        await alertAPI.update(editAlert._id, form);
+        await alertAPI.update(editAlert.id, form);
         toast.success('Alert updated!');
       } else {
         await alertAPI.create(form);
@@ -55,14 +55,14 @@ const AlertsPage = () => {
     try {
       await alertAPI.delete(id);
       toast.success('Alert deleted');
-      setAlerts(prev => prev.filter(a => a._id !== id));
+      setAlerts(prev => prev.filter(a => a.id !== id));
     } catch { toast.error('Failed to delete alert'); }
   };
 
   const handleToggle = async (alert) => {
     try {
-      await alertAPI.update(alert._id, { isActive: !alert.isActive });
-      setAlerts(prev => prev.map(a => a._id === alert._id ? { ...a, isActive: !a.isActive } : a));
+      await alertAPI.update(alert.id, { isActive: !alert.isActive });
+      setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, isActive: !a.isActive } : a));
       toast.success(alert.isActive ? 'Alert disabled' : 'Alert enabled');
     } catch { toast.error('Failed to update alert'); }
   };
@@ -103,7 +103,7 @@ const AlertsPage = () => {
             </thead>
             <tbody>
               {alerts.map(alert => (
-                <tr key={alert._id}>
+                <tr key={alert.id}>
                   <td><strong>{alert.name}</strong></td>
                   <td style={{ fontSize: '0.85rem' }}>{alert.device?.name || alert.deviceId}</td>
                   <td>
@@ -127,7 +127,7 @@ const AlertsPage = () => {
                   <td>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button className="btn btn-secondary btn-sm" onClick={() => { setEditAlert(alert); setForm({ deviceId: alert.deviceId, name: alert.name, pin: alert.pin, condition: alert.condition, threshold: alert.threshold, notificationType: alert.notificationType, message: alert.message || '', cooldownMinutes: alert.cooldownMinutes }); setShowModal(true); }}><Edit3 size={14} /></button>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(alert._id)}><Trash2 size={14} /></button>
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(alert.id)}><Trash2 size={14} /></button>
                     </div>
                   </td>
                 </tr>
@@ -153,7 +153,7 @@ const AlertsPage = () => {
                 <label className="form-label">Device *</label>
                 <select className="form-select" value={form.deviceId} onChange={e => setForm({ ...form, deviceId: e.target.value })} required>
                   <option value="">Select device...</option>
-                  {devices.map(d => <option key={d._id} value={d.deviceId}>{d.name}</option>)}
+                  {devices.map(d => <option key={d.id} value={d.deviceId}>{d.name}</option>)}
                 </select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
