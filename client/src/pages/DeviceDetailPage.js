@@ -509,7 +509,7 @@ const DeviceDetailPage = () => {
               <pre className="code-block">{`#define TEMPLATE_ID "${device?.templateId}"
 #define DEVICE_NAME "${device?.name}"
 #define AUTH_TOKEN "${authToken}"
-#define SERVER_URL "http://localhost:5000"`}</pre>
+#define SERVER_URL "${process.env.REACT_APP_SOCKET_URL || 'https://nexus-iot-5ogy.onrender.com'}"`}</pre>
             </div>
           </div>
         </div>
