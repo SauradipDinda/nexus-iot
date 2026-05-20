@@ -51,6 +51,7 @@ const io = socketIo(server, {
 });
 
 app.set('io', io);
+app.set('trust proxy', 1); // Crucial for Render: get real client IP
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors({
